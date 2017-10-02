@@ -9,9 +9,12 @@ public class Fetch {
     public static final boolean DEBUG = true;
 
     public static void main(String[] args) throws Exception {
+        //Check if args[0] is set
+        //If not set a default
         //Grab the URL and the filename from the url
-        String fileName = args[0];
-        URL url = new URL(fileName);
+        String urlPath;
+        urlPath = args.length > 0 ? args[0] : "http://cs.rocky.edu/~bennera/";
+        URL url = new URL(urlPath);
 
         //Check if it is an HTTP request
         if (!url.getProtocol().toLowerCase().equals("http")) {
@@ -41,15 +44,13 @@ public class Fetch {
         Socket httpSocket = new Socket(url.getHost(), url.getDefaultPort());
 
         InputStream httpInput = httpSocket.getInputStream();
-        DataOutputStream httpOutput = new DataOutputStream(httpSocket.getOutputStream());
-
-        //Set the output stream of the file
-//        OutputStream fileOutputStream = new FileOutputStream();
+        OutputStream httpOutput = httpSocket.getOutputStream();
 
         StringBuilder headerInfo = new StringBuilder();
         headerInfo.append("GET " + filePath + " HTTP/1.1\r\n");
         headerInfo.append("Host: " + url.getHost() + "\r\n");
         headerInfo.append("Connection: close\r\n");
+        headerInfo.append("\r\n");
 
         if(DEBUG) {
             System.out.println(headerInfo.toString());
@@ -59,11 +60,37 @@ public class Fetch {
         byte[] stringBytes = headerInfo.toString().getBytes();
         httpOutput.write(stringBytes);
 
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        // pull the entire response into a ByteArrayOutputStream
-        int ch;
-        while ((ch = httpSocket.getInputStream().read()) != -1) {
-            out.write(ch);
+        ByteArrayOutputStream byteOutput = new ByteArrayOutputStream();
+        //Pull it into the byte array output stream
+        int character;
+        while((character = httpSocket.getInputStream().read()) != -1) {
+            byteOutput.write(character);
         }
+
+        //Convert bytes to a string
+        byte[] response = byteOutput.toByteArray();
+        String stringOutput = new String(response);
+        int index = stringOutput.indexOf("\r\n\r\n");
+
+        //Display our response header
+        String header = new String(response, 0, index);
+        System.out.println(header);
+
+        while(response[index] == '\r' || response[index] == '\n'){
+            index++;
+        }
+
+
+        //Set the output stream of the file
+        File newFile = new File(requestedFile);
+        newFile.createNewFile();
+        OutputStream fileOutputStream = new FileOutputStream(newFile);
+        //Go through the file and write to it
+        fileOutputStream.write(response, index, (response.length - index));
+
+        fileOutputStream.close();
+        httpSocket.close();
+        httpInput.close();
+        httpOutput.close();
     }
 }
